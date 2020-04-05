@@ -1,2 +1,29 @@
 TTY MIDI Keyboard
 Author: Calvin Kosmatka <calvin.kosmatka@gmail.com>
+
+This program turns a TTY into an ALSA MIDI keyboard.
+
+Usage:
+	tmk [dest_client:dest_port]
+	tmk (-h | --help)
+
+The optional dest_client:dest_port argument specifies and ALSA client to connect to. If not specified, aconnect can be used later to connect MIDI output.
+
+White keys are laid out from <a> to <'>. Black keys are on the row above.
+
+The <a> key maps to [C] (MIDI note 60 in the defualt octave)
+    <w> maps to [C#/Db]
+    ...
+    <f> maps to [F]
+    <t> maps to [F#/Gb]
+    ...
+    <k> maps to [C + 1 octave]
+    <o> maps to [C#/Db + 1 octave]
+    ...
+    <'> maps to [F + 1 octave]
+
+The <z> and <x> keys shift the keyboard an octave down and up
+
+Press <q> to quit. <CTRL-C> will not work as expected since tmk uses K_RAW mode for keyboard input.
+
+Press <TAB> to pause output switch back to K_XLATE mode. <CTRL-C>, <CTRL-Z>, and other commands will work as expected while output is paused.
