@@ -18,6 +18,8 @@ static int output_ret;
 static unsigned char octave = 5;
 
 static struct termios orig_term;
+static struct termios raw;
+static char * cur_kb_mode;
 
 static void send_note_on(unsigned char note) {
 	ev->type = SND_SEQ_EVENT_NOTEON;
@@ -25,7 +27,6 @@ static void send_note_on(unsigned char note) {
 	ev->data.note.velocity = 127;
 	snd_seq_ev_set_subs(ev);
 	snd_seq_event_output_direct(handle, ev);
-	ev->type = SND_SEQ_EVENT_NOTEOFF;
 }
 
 static void send_note_off(unsigned char note) {
@@ -51,20 +52,25 @@ static void seq_init() {
 static void terminal_setup() {
 	tcgetattr(STDIN_FILENO, &orig_term);
 
-	struct termios raw = orig_term;
+	raw = orig_term;
 	raw.c_lflag &= ~(ECHO | ICANON);
 	raw.c_iflag = 0;
 	tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
-	ioctl(0, KDSKBMODE, K_RAW);
+	cur_kb_mode = (char *) K_RAW;
+	ioctl(STDIN_FILENO, KDSKBMODE, cur_kb_mode);
 }
 
 static void terminal_teardown() {
 	tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_term);
-        ioctl(0, KDSKBMODE, K_XLATE);
+        ioctl(STDIN_FILENO, KDSKBMODE, K_XLATE);
+}
+
+static void do_sigcont() {
+	tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+	ioctl(0, KDSKBMODE, cur_kb_mode);
 }
 
 static void do_exit() {
-	fflush(stdout);
 	terminal_teardown();
 	_exit(0);
 }
@@ -72,8 +78,9 @@ static void do_exit() {
 static void usage(char *cmd) {
 	printf("TTY MIDI Keyboard\r\n");
 	printf("Usage:\r\n");
+	printf("\t%s [dest_client:dest_port]\r\n", cmd);
 	printf("\t%s (-h | --help)\r\n", cmd);
-	printf("\t%s dest_client:dest_port\r\n", cmd);
+	fflush(stdout);
 }
 
 int main(int argc, char *argv[])
@@ -81,6 +88,9 @@ int main(int argc, char *argv[])
         unsigned char in_ch;
 	terminal_setup();
 	signal(SIGINT, do_exit);
+	signal(SIGTERM, do_exit);
+	signal(SIGSTOP, terminal_teardown);
+	signal(SIGCONT, do_sigcont);
 	seq_init();
 	if (argc > 2) {
 		printf("Too many arguments.\r\n");
@@ -101,6 +111,7 @@ int main(int argc, char *argv[])
 			snd_seq_port_subscribe_set_dest(sub, &dest);
 			if (snd_seq_subscribe_port(handle, sub) < 0) {
 				printf("Error connecting to midi client: %s\r\n", argv[1]);
+				fflush(stdout);
 				do_exit();
 			}
 		}
@@ -117,7 +128,8 @@ int main(int argc, char *argv[])
 	ev = malloc(sizeof(snd_seq_event_t));
 	if (ev == NULL) {
 		printf("Could not allocate midi event.\r\n");
-		exit(1);
+		fflush(stdout);
+		do_exit();
 	}
 	snd_seq_ev_set_direct(ev);
 	snd_seq_ev_set_source(ev, tmk_port);
@@ -246,11 +258,13 @@ int main(int argc, char *argv[])
 			break;
 		case 0x90:
 			printf("Exiting\r\n");
+			fflush(stdout);
 			do_exit();
 			break;
 		case 0x2b:
 			printf("Pausing\r\n");
-			ioctl(0, KDSKBMODE, K_XLATE);
+			cur_kb_mode = (char *) K_XLATE;
+			ioctl(STDIN_FILENO, KDSKBMODE, K_XLATE);
 			int done = 0;
 			while(1) {
 				read(STDIN_FILENO, &in_ch , 1);
@@ -260,6 +274,7 @@ int main(int argc, char *argv[])
 					break;
 				case 'q':
 					printf("Exiting\r\n");
+					fflush(stdout);
 					do_exit();
 					break;
 				default:
@@ -270,7 +285,8 @@ int main(int argc, char *argv[])
 				}
 			}
 			printf("Resuming\r\n");
-			ioctl(0, KDSKBMODE, K_RAW);
+			cur_kb_mode = (char *) K_RAW;
+			ioctl(STDIN_FILENO, KDSKBMODE, K_RAW);
 			break;
 		defualt:
 			break;
