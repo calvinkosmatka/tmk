@@ -27,3 +27,5 @@ The <z> and <x> keys shift the keyboard an octave down and up
 Press <q> to quit. <CTRL-C> will not work as expected since tmk uses K_RAW mode for keyboard input.
 
 Press <TAB> to pause output switch back to K_XLATE mode. <CTRL-C>, <CTRL-Z>, and other commands will work as expected while output is paused.
+
+This program does not work in pseudo-terminals.
