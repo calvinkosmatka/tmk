@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
 			fflush(stdout);
 			do_exit();
 			break;
-		case 0x2b:
+		case 0x0f:
 			printf("Pausing\r\n");
 			cur_kb_mode = (char *) K_XLATE;
 			ioctl(STDIN_FILENO, KDSKBMODE, K_XLATE);
@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
 			while(1) {
 				read(STDIN_FILENO, &in_ch , 1);
 				switch(in_ch) {
-				case '\\':
+				case '\t':
 			 		done = 1;
 					break;
 				case 'q':
