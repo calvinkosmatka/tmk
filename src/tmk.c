@@ -16,6 +16,7 @@ static snd_seq_event_t *ev;
 static int queue;
 static int output_ret;
 static unsigned char octave = 5;
+static char * running_octave = "\33[2K\rRunning\tOctave: %d";
 
 static struct termios orig_term;
 static struct termios raw;
@@ -135,6 +136,8 @@ int main(int argc, char *argv[])
 	snd_seq_ev_set_source(ev, tmk_port);
 	ev->data.note.channel = 1;
 	ev->data.note.velocity = 127;
+	printf(running_octave, octave);
+	fflush(stdout);
         while(1) {
         	read(STDIN_FILENO, &in_ch, 1);
 		switch(in_ch) {
@@ -142,11 +145,15 @@ int main(int argc, char *argv[])
 			if (octave == 0)
 				break;
 			octave--;
+			printf(running_octave, octave);
+			fflush(stdout);
 			break;
 		case 0xad: //octave up (x release)
 			if (octave == 10)
 				break;
 			octave++;
+			printf(running_octave, octave);
+			fflush(stdout);
 			break;
 		case 0x1e: // C
 			send_note_on(12 * octave);
@@ -257,12 +264,13 @@ int main(int argc, char *argv[])
 			send_note_off(12 * octave + 17);
 			break;
 		case 0x90:
-			printf("Exiting\r\n");
+			printf("\r\nExiting...");
 			fflush(stdout);
 			do_exit();
 			break;
 		case 0x0f:
-			printf("Pausing\r\n");
+			printf("\33[2K\rPaused");
+			fflush(stdout);
 			cur_kb_mode = (char *) K_XLATE;
 			ioctl(STDIN_FILENO, KDSKBMODE, K_XLATE);
 			int done = 0;
@@ -273,7 +281,7 @@ int main(int argc, char *argv[])
 			 		done = 1;
 					break;
 				case 'q':
-					printf("Exiting\r\n");
+					printf("\r\nExiting...");
 					fflush(stdout);
 					do_exit();
 					break;
@@ -284,7 +292,8 @@ int main(int argc, char *argv[])
 					break;
 				}
 			}
-			printf("Resuming\r\n");
+			printf(running_octave, octave);
+			fflush(stdout);
 			cur_kb_mode = (char *) K_RAW;
 			ioctl(STDIN_FILENO, KDSKBMODE, K_RAW);
 			break;
